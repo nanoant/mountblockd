@@ -10,13 +10,16 @@ $(NAME): $(NAME).c
 install: $(NAME) $(ORG).$(NAME).plist
 	install -d $(PREFIX)/sbin
 	install -p $(NAME) $(PREFIX)/sbin
-	install -d $(PREFIX)/etc/LaunchDaemons
-	install -p $(ORG).$(NAME).plist $(PREFIX)/etc/LaunchDaemons
+	cp $(ORG).$(NAME).plist /Library/LaunchDaemons
+
+uninstall:
+	rm $(PREFIX)/sbin/$(NAME)
+	rm -f /Library/LaunchDaemons/$(ORG).$(NAME).plist
 
 start:
-	launchctl load -F $(PREFIX)/etc/LaunchDaemons/$(ORG).$(NAME).plist
+	launchctl load -wF /Library/LaunchDaemons/$(ORG).$(NAME).plist
 	launchctl start $(ORG).$(NAME)
 
 stop:
 	launchctl stop $(ORG).$(NAME)
-	launchctl unload -F $(PREFIX)/etc/LaunchDaemons/$(ORG).$(NAME).plist
+	launchctl unload -F /Library/LaunchDaemons/$(ORG).$(NAME).plist

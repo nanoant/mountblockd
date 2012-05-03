@@ -16,6 +16,12 @@ Installation
 4. `sudo make start`
 
 
+Removal
+-------
+
+1. `sudo make stop`
+2. `sudo make uninstall`
+
 License
 -------
 
