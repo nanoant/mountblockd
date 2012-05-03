@@ -4,43 +4,17 @@
 //
 // Based on:
 // http://superuser.com/questions/336455/mac-lion-fstab-is-deprecated-so-what-replaces-it-to-prevent-a-partition-from-m/336474#336474
+//
+// Compile with:
+// cc mountblockd.c -g -o mountblockd -framework Foundation -framework DiskArbitration
 
-#include <syslog.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <DiskArbitration/DiskArbitration.h>
 
 CFStringRef *names = NULL;
 int nameCount = 0;
 bool run = true;
-bool console = true;
-
-void printlog(int level, const char *format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	vsyslog(level, format, args);
-	va_end(args);
-
-	if (console) {
-		const char *str_level = "";
-		time_t now = time(NULL);
-		char *str_time = ctime(&now);
-
-		str_time[strlen(str_time) - 1] = 0;
-		switch(level) {
-			case LOG_ERR:     str_level = "Error: ";   break;
-			case LOG_WARNING: str_level = "Warning: "; break;
-			case LOG_NOTICE:  str_level = "Notice: ";  break;
-			case LOG_INFO:    str_level = "Info: ";    break;
-			case LOG_DEBUG:   str_level = "Debug: ";   break;
-		}
-		fprintf(stderr, "[%s] %s", str_time, str_level);
-		va_start(args, format);
-		vfprintf(stderr, format, args);
-		va_end(args);
-		fprintf(stderr, "\n");
-	}
-}
+bool quiet = false;
 
 DADissenterRef BlockMount(DADiskRef disk, void *context)
 {
@@ -63,9 +37,9 @@ DADissenterRef BlockMount(DADiskRef disk, void *context)
 	}
 	if (block) {
 		dissenter = DADissenterCreate(kCFAllocatorDefault, kDAReturnNotPermitted, NULL);
-		printlog(LOG_INFO, "BLOCKED volume `%s'", str);
+		if(!quiet) if(!quiet) fprintf(stderr, "BLOCKED volume `%s'\n", str);
 	} else {
-		printlog(LOG_INFO, "allowed volume `%s'", str);
+		if(!quiet) if(!quiet) fprintf(stderr, "allowed volume `%s'\n", str);
 	}
 	if (description) {
 		CFRelease(description);
@@ -76,23 +50,23 @@ DADissenterRef BlockMount(DADiskRef disk, void *context)
 void signal_handler(int sig) {
 	switch(sig) {
 	case SIGHUP:
-		printlog(LOG_INFO, "received SIGHUP signal, not supported");
+		if(!quiet) fprintf(stderr, "received SIGHUP signal, not supported\n");
 		CFRunLoopStop(CFRunLoopGetCurrent());
 		break;
 	case SIGTERM:
-		printlog(LOG_INFO, "received SIGTERM signal, terminating");
+		if(!quiet) fprintf(stderr, "received SIGTERM signal, terminating\n");
 		run = false; CFRunLoopStop(CFRunLoopGetCurrent());
 		break;
 	case SIGINT:
-		printlog(LOG_INFO, "received SIGINT signal, terminating");
+		if(!quiet) fprintf(stderr, "received SIGINT signal, terminating\n");
 		run = false; CFRunLoopStop(CFRunLoopGetCurrent());
 		break;
 	case SIGQUIT:
-		printlog(LOG_INFO, "received SIGQUIT signal, terminating");
+		if(!quiet) fprintf(stderr, "received SIGQUIT signal, terminating\n");
 		run = false; CFRunLoopStop(CFRunLoopGetCurrent());
 		break;
 	default:
-		printlog(LOG_WARNING, "uhandled signal (%d) %s", sig, strsignal(sig));
+		fprintf(stderr, "uhandled signal (%d) %s\n", sig, strsignal(sig));
 		break;
 	}
 }
@@ -102,35 +76,31 @@ int main(int argc, const char *argv[])
 	int argi;
 	bool useConsole;
 
-	openlog("mountblockd", LOG_NDELAY | LOG_PID | LOG_CONS, LOG_DAEMON);
-
 	for (argi = 1; argi < argc && argv[argi][0] == '-'; argi++) {
-		if (!strcmp(argv[argi], "-console")) {
-			useConsole = true;
+		if (!strcmp(argv[argi], "-quiet")) {
+			quiet = true;
 		} else {
-			printlog(LOG_ERR, "unknown parameter `%s'", argv[argi]);
+			fprintf(stderr, "unknown parameter `%s'\n", argv[argi]);
 		}
 	}
-	console = useConsole;
 
-	signal(SIGHUP, signal_handler);
+	signal(SIGHUP,  signal_handler);
 	signal(SIGTERM, signal_handler);
-	signal(SIGINT, signal_handler);
+	signal(SIGINT,  signal_handler);
 	signal(SIGQUIT, signal_handler);
 
 	DAApprovalSessionRef session = DAApprovalSessionCreate(kCFAllocatorDefault);
 	if (!session) {
-		printlog(LOG_ERR, "failed to create Disk Arbitration session");
+		fprintf(stderr, "failed to create Disk Arbitration session\n");
 	} else if (argc - argi <= 0) {
-		console = true;
-		printlog(LOG_ERR, "usage: %s [-console] <name> ...", argv[0]);
+		fprintf(stderr, "usage: %s [-quiet] <name> ...\n", argv[0]);
 	} else {
 		CFStringRef cfStringNames[argc - argi];
-		printlog(LOG_INFO, "blocking:");
+		if(!quiet) fprintf(stderr, "blocking:\n");
 		for(nameCount = 0; nameCount < argc - argi; nameCount++) {
-			printlog(LOG_INFO, "(%d) `%s'", nameCount + 1, argv[nameCount + argi]);
+			if(!quiet) fprintf(stderr, "(%d) `%s'\n", nameCount + 1, argv[nameCount + argi]);
 			cfStringNames[nameCount] = CFStringCreateWithCStringNoCopy(NULL, 
-						argv[nameCount + 1],
+						argv[nameCount + argi],
 						kCFStringEncodingUTF8,
 						kCFAllocatorNull);
 		}
