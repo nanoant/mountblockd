@@ -14,7 +14,7 @@
 	<array>
 		<string>/usr/local/sbin/mountblockd</string>
 		<!-- <string>-quiet</string> -->
-		<string>Mountain Lion</string>
+		<string>Blocked Volume Name 1</string>
 	</array>
 	<key>KeepAlive</key>
 	<true/>
